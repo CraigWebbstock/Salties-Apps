@@ -633,11 +633,9 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,'Helvetica 
 
 </div><!-- end .main -->
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = 'https://pegxkavrikxazzomnssw.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZ3hrYXZyaWt4YXp6b21uc3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjM3NTMsImV4cCI6MjA5NjczOTc1M30.pzNTc0qQu-pjC28cMPub9HB3FU8j6OOwtVgvZeRx8k8';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SB_URL = 'https://pegxkavrikxazzomnssw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZ3hrYXZyaWt4YXp6b21uc3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNjM3NTMsImV4cCI6MjA5NjczOTc1M30.pzNTc0qQu-pjC28cMPub9HB3FU8j6OOwtVgvZeRx8k8';
 
 function showSyncStatus(msg, colour) {
   const el = document.getElementById('sync-status');
@@ -646,8 +644,17 @@ function showSyncStatus(msg, colour) {
 
 async function saveDataRemote(data) {
   try {
-    const { error } = await sb.from('ignite_data').upsert({ id: 'main', data: data, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-    if(error) throw error;
+    const res = await fetch(SB_URL + '/rest/v1/ignite_data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({ id: 'main', data: data, updated_at: new Date().toISOString() })
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
     showSyncStatus('Saved ✓', '#5DCAA5');
     setTimeout(() => showSyncStatus('', ''), 2000);
   } catch(e) {
@@ -658,11 +665,18 @@ async function saveDataRemote(data) {
 async function loadDataRemote() {
   showSyncStatus('Syncing...', '#4aaee8');
   try {
-    const { data, error } = await sb.from('ignite_data').select('data').eq('id', 'main').single();
-    if(error || !data) throw error || new Error('No data');
+    const res = await fetch(SB_URL + '/rest/v1/ignite_data?id=eq.main&select=data', {
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY
+      }
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    if(!rows || rows.length === 0) throw new Error('No data');
     showSyncStatus('Synced ✓', '#5DCAA5');
     setTimeout(() => showSyncStatus('', ''), 3000);
-    return data.data;
+    return rows[0].data;
   } catch(e) {
     showSyncStatus('Offline — local only', '#E24B4A');
     return null;
