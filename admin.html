@@ -454,7 +454,7 @@ async function addPortfolioItem() {
   try {
     const imageData = await compressImage(file, 1200, 0.8);
     await sbFetch('portfolio', 'POST', {
-      id: uid(), title, description, category, image_data: imageData, sort_order: Date.now()
+      id: uid(), title, description, category, image_data: imageData, sort_order: Math.floor(Date.now()/1000)
     });
     syncStatus('portfolio-add', 'success', 'Photo saved successfully ✓');
     document.getElementById('p-title').value = '';
@@ -528,7 +528,7 @@ async function addMerchItem() {
     if (file) imageData = await compressImage(file, 800, 0.85);
     await sbFetch('merch', 'POST', {
       id: uid(), title, description, category, price: price ? parseFloat(price) : null,
-      status, image_data: imageData, sort_order: Date.now()
+      status, image_data: imageData, sort_order: Math.floor(Date.now()/1000)
     });
     syncStatus('merch-add', 'success', 'Product saved successfully ✓');
     document.getElementById('m-title').value = '';
