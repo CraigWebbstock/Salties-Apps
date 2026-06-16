@@ -720,8 +720,8 @@ async function loadMerch() {
     document.getElementById('merch-placeholder').style.display = 'none';
     document.getElementById('merch-products').style.display = 'block';
     const grid = document.getElementById('merch-grid');
-    grid.innerHTML = items.map(item => `
-      <div style="background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+    grid.innerHTML = items.map((item, i) => `
+      <div class="merch-card" data-index="${i}" style="background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);cursor:${item.image_data ? 'zoom-in' : 'default'};">
         ${item.image_data
           ? `<div style="height:160px;overflow:hidden;"><img src="data:image/jpeg;base64,${item.image_data}" style="width:100%;height:100%;object-fit:cover;"></div>`
           : `<div style="height:160px;background:#F0F4F8;display:flex;align-items:center;justify-content:center;color:#A0AEC0;font-size:13px;">No image</div>`
@@ -736,6 +736,16 @@ async function loadMerch() {
         </div>
       </div>
     `).join('');
+
+    // Attach click handlers
+    document.querySelectorAll('.merch-card').forEach(el => {
+      el.addEventListener('click', function() {
+        const item = items[parseInt(this.dataset.index)];
+        if (item.image_data) {
+          openLightbox('data:image/jpeg;base64,' + item.image_data, item.title, item.description || '');
+        }
+      });
+    });
   } catch(e) {
     // silently fail - show placeholder
   }

@@ -307,8 +307,8 @@ function renderPhotos(cat) {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,0.6)">No photos in this category yet.</div>';
     return;
   }
-  grid.innerHTML = filtered.map(item => `
-    <div class="portfolio-item" data-category="${item.category}">
+  grid.innerHTML = filtered.map((item, i) => `
+    <div class="portfolio-item" data-category="${item.category}" data-index="${i}" style="cursor:zoom-in;">
       <img src="data:image/jpeg;base64,${item.image_data}" alt="${item.title}" style="width:100%;height:100%;object-fit:cover;">
       <div class="portfolio-overlay">
         <h3>${item.title}</h3>
@@ -316,6 +316,15 @@ function renderPhotos(cat) {
       </div>
     </div>
   `).join('');
+
+  // Attach click handlers after rendering
+  grid.querySelectorAll('.portfolio-item').forEach(el => {
+    el.addEventListener('click', function() {
+      const idx = parseInt(this.dataset.index);
+      const item = filtered[idx];
+      openLightbox('data:image/jpeg;base64,' + item.image_data, item.title, item.description || item.category);
+    });
+  });
 }
 
 function filterWork(cat, btn) {
