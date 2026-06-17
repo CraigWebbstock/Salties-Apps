@@ -271,8 +271,32 @@
 <script>
 function handleSubmit(e) {
   e.preventDefault();
-  const mailto = `mailto:craig@saltiescustoms.co.uk?subject=Project Enquiry — ${document.getElementById('project-type').value}&body=Name: ${document.getElementById('fname').value} ${document.getElementById('lname').value}%0AEmail: ${document.getElementById('email').value}%0APhone: ${document.getElementById('phone').value}%0AProject: ${document.getElementById('project-type').value}%0ALocation: ${document.getElementById('location').value}%0ABudget: ${document.getElementById('budget').value}%0A%0AMessage:%0A${document.getElementById('message').value}`;
-  window.location.href = mailto;
+
+  var fname = document.getElementById('fname').value;
+  var lname = document.getElementById('lname').value;
+  var email = document.getElementById('email').value;
+  var phone = document.getElementById('phone').value;
+  var project = document.getElementById('project-type').value;
+  var location = document.getElementById('location').value;
+  var budget = document.getElementById('budget').value;
+  var message = document.getElementById('message').value;
+
+  var subject = encodeURIComponent('Project Enquiry — ' + project);
+
+  var body = encodeURIComponent(
+    '--- SALTIES CUSTOMS ENQUIRY ---' +
+    '\n\nNAME: ' + fname + ' ' + lname +
+    '\nEMAIL: ' + email +
+    '\nPHONE: ' + phone +
+    '\nPROJECT TYPE: ' + project +
+    '\nLOCATION: ' + location +
+    '\nBUDGET: ' + budget +
+    '\n\nMESSAGE:\n' + message +
+    '\n\n-------------------------------'
+  );
+
+  window.location.href = 'mailto:craig@saltiescustoms.co.uk?subject=' + subject + '&body=' + body;
+
   document.getElementById('contact-form').style.display = 'none';
   document.getElementById('form-success').style.display = 'block';
 }
