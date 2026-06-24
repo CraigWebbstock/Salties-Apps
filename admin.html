@@ -426,7 +426,9 @@ async function sbFetch(table, method, body, query) {
     const err = await res.text();
     throw new Error(err);
   }
-  return method === 'DELETE' ? null : res.json();
+  if (method === 'DELETE' || method === 'PATCH') return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // ── SYNC STATUS ──
@@ -577,7 +579,7 @@ async function addMerchItem() {
     let imageData = null;
     if (file) imageData = await compressImage(file, 800, 0.85);
     await sbFetch('merch', 'POST', {
-      id: uid(), title, description, category, price: price ? parseFloat(price) : null,
+      id: uid(), title, description, category, price: (price !== '' && !isNaN(parseFloat(price))) ? parseFloat(parseFloat(price).toFixed(2)) : null,
       status, image_data: imageData, sort_order: Math.floor(Date.now()/1000)
     });
     syncStatus('merch-add', 'success', 'Product saved successfully ✓');
@@ -823,7 +825,7 @@ async function saveMerchEdit() {
   var id = document.getElementById('edit-m-id').value;
   var title = document.getElementById('edit-m-title').value.trim();
   var category = document.getElementById('edit-m-category').value;
-  var price = document.getElementById('edit-m-price').value;
+  var price = document.getElementById('edit-m-price').value.trim();
   var status = document.getElementById('edit-m-status').value;
   var description = document.getElementById('edit-m-description').value.trim();
   var file = document.getElementById('edit-merch-file').files[0];
@@ -833,10 +835,11 @@ async function saveMerchEdit() {
   syncStatus('merch-edit', 'loading', 'Saving changes...');
 
   try {
+    var priceVal = price !== '' && price !== null && !isNaN(parseFloat(price)) ? parseFloat(parseFloat(price).toFixed(2)) : null;
     var updates = {
       title: title,
       category: category,
-      price: price ? parseFloat(price) : null,
+      price: priceVal,
       status: status,
       description: description
     };
