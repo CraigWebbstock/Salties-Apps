@@ -381,6 +381,8 @@ async function handleNotify(e){
     form.innerHTML='<p style="font-size:13px;font-weight:600;color:var(--rust);padding:10px 0">You are on the list. We will be in touch.</p>';
   }catch(err){
     form.innerHTML='<p style="font-size:13px;font-weight:600;color:var(--rust);padding:10px 0">Something went wrong — please try again.</p>';
-  }
-} 
+} document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+loadShop();
+</script>
+</body></html>
   
