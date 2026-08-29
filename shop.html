@@ -347,8 +347,7 @@ function openProductModal(item){
   if(item.status==='live'){
     actionEl.innerHTML='<a href="contact.html?ref='+encodeURIComponent(item.title)+'" class="btn btn-ocean" style="width:100%;justify-content:center">Enquire to Order</a>';
   }else{
-    actionEl.innerHTML='<form onsubmit="handleNotify(event)"><div class="notify-form"><input type="email" class="notify-input" placeholder="Notify me when live" required><button type="submit" class="notify-btn">Notify Me</button></div></form>';
-  }
+    actionEl.innerHTML='<form onsubmit="handleNotify(event)" data-product="'+item.title.replace(/"/g,'&quot;')+'"><div class="notify-form">
   document.getElementById('prod-modal').classList.add('open');
   document.body.style.overflow='hidden';
 }
