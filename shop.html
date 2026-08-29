@@ -366,7 +366,7 @@ async function handleNotify(e){
   e.preventDefault();
   var email=e.target.querySelector('input[type="email"]').value;
   var form=e.target;
-  try{
+  try{  var product=e.target.getAttribute('data-product')||'General signup';
     var r=await fetch(SB_URL+'/rest/v1/notify_signups',{
       method:'POST',
       headers:{
@@ -374,7 +374,7 @@ async function handleNotify(e){
         'Authorization':'Bearer '+SB_KEY,
         'Content-Type':'application/json'
       },
-      body:JSON.stringify({email:email})
+           body:JSON.stringify({email:email,product:product})
     });
     if(!r.ok) throw new Error(await r.text());
     form.innerHTML='<p style="font-size:13px;font-weight:600;color:var(--rust);padding:10px 0">You are on the list. We will be in touch.</p>';
