@@ -326,7 +326,7 @@ function renderShop(items){
       :'<div class="prod-img"><div class="no-img">No image</div><span class="prod-status '+sc+'">'+sl+'</span></div>';
     var actionH=item.status==='live'
       ?'<a href="contact.html?ref='+encodeURIComponent(item.title)+'" class="btn btn-ocean" style="width:100%;justify-content:center">Enquire to Order</a>'
-      :'<form onsubmit="handleNotify(event)" style="width:100%"><div class="notify-form"><input type="email" class="notify-input" placeholder="Notify me when live" required><button type="submit" class="notify-btn">Notify</button></div></form>';
+      ::'<form onsubmit="handleNotify(event)" data-product="'+item.title.replace(/"/g,'&quot;')+'" style="width:100%"><div class="notify-form">
     card.innerHTML=imgH+'<div class="prod-body"><span class="prod-cat">'+(item.category||'')+'</span><div class="prod-title">'+item.title+'</div><p class="prod-desc">'+(item.description||'')+'</p>'+(item.price?'<div class="prod-price">£'+parseFloat(item.price).toFixed(2)+'</div>':'')+actionH+'</div>';
     if(item.image_data){
       card.querySelector('.prod-img').addEventListener('click',function(){openProductModal(item);});
