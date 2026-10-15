@@ -1,0 +1,32 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Runs every 3 days at 06:17 UTC
+    - cron: '17 6 */3 * *'
+  # Adds a "Run workflow" button so you can test it manually
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase database
+        env:
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          STATUS=$(curl -s -o response.txt -w "%{http_code}" \
+            "https://pegxkavrikxazzomnssw.supabase.co/rest/v1/settings?select=key&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY")
+
+          echo "Supabase responded with HTTP $STATUS"
+          cat response.txt
+          echo ""
+
+          if [ "$STATUS" != "200" ]; then
+            echo "PING FAILED - project may be paused or the key is wrong."
+            exit 1
+          fi
+
+          echo "Ping successful - Supabase is awake."
