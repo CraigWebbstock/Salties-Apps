@@ -368,6 +368,12 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#F0F4F8;color:#1A2744
         </div>
         <input type="file" id="em-file" accept="image/*" style="display:none" onchange="fileSelected(this,'em-preview')">
       </div>
+      <div class="form-group full" style="margin-bottom:14px">
+        <label>Extra Photos (up to 6 — shown as thumbnails on the shop)</label>
+        <div id="em-extras" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('em-extra-file').click()">+ Add Extra Photos</button>
+        <input type="file" id="em-extra-file" accept="image/*" multiple style="display:none" onchange="addExtraPhotos(this)">
+      </div>
       <div class="form-section">
         <div class="form-group"><label>Name *</label><input type="text" id="em-title"></div>
         <div class="form-group"><label>Category</label>
@@ -712,7 +718,7 @@ function clearMerchForm() {
 async function loadMerch() {
   syncStatus('m-manage', 'loading', 'Loading products...');
   try {
-    var items = await sbGet('merch', '?order=sort_order.desc');
+    var items = await sbGet('merch', '?select=id,title,category,description,price,status,stock,image_data,sort_order&order=sort_order.desc');
     var grid = document.getElementById('merch-grid');
     grid.innerHTML = '';
     if (!items.length) {
@@ -788,7 +794,54 @@ function openMerchEdit(item) {
   document.getElementById('em-file').value = '';
   document.getElementById('em-preview').style.display = 'none';
   document.getElementById('sync-m-edit').className = 'sync-bar';
+  document.getElementById('em-extra-file').value = '';
+  editExtras = null; // null = still loading, so Save won't wipe existing extras
+  document.getElementById('em-extras').innerHTML = '<span style="font-size:12px;color:#6B7C93">Loading extra photos...</span>';
   document.getElementById('modal-m-edit').classList.add('open');
+  sbGet('merch', '?id=eq.' + item.id + '&select=extra_images').then(function(rows) {
+    editExtras = (rows[0] && Array.isArray(rows[0].extra_images)) ? rows[0].extra_images : [];
+    renderExtras();
+  }).catch(function(e) {
+    document.getElementById('em-extras').innerHTML = '<span style="font-size:12px;color:#C53030">Could not load extra photos — has the extra_images column been added in Supabase?</span>';
+  });
+}
+
+// ── EXTRA PRODUCT PHOTOS ──────────────────────────────────────────────────
+var MAX_EXTRAS = 6;
+var editExtras = [];
+function renderExtras() {
+  var wrap = document.getElementById('em-extras');
+  wrap.innerHTML = '';
+  if (!editExtras.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:#6B7C93">No extra photos yet.</span>';
+    return;
+  }
+  editExtras.forEach(function(b64, i) {
+    var box = document.createElement('div');
+    box.style.cssText = 'position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:1px solid var(--border)';
+    box.innerHTML = '<img src="data:image/jpeg;base64,' + b64 + '" style="width:100%;height:100%;object-fit:cover">' +
+      '<button type="button" title="Remove" style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:none;background:rgba(0,0,0,.65);color:#fff;font-size:12px;cursor:pointer;line-height:22px;padding:0">✕</button>';
+    box.querySelector('button').addEventListener('click', function() {
+      editExtras.splice(i, 1);
+      renderExtras();
+    });
+    wrap.appendChild(box);
+  });
+}
+async function addExtraPhotos(input) {
+  var files = Array.from(input.files || []);
+  if (!files.length) return;
+  if (!Array.isArray(editExtras)) { alert('Extra photos are still loading — try again in a moment.'); input.value = ''; return; }
+  var room = MAX_EXTRAS - editExtras.length;
+  if (room <= 0) { alert('Maximum ' + MAX_EXTRAS + ' extra photos. Remove one first.'); input.value = ''; return; }
+  if (files.length > room) { alert('Only ' + room + ' more photo(s) allowed — adding the first ' + room + '.'); files = files.slice(0, room); }
+  syncStatus('m-edit', 'loading', 'Compressing photos...');
+  for (var i = 0; i < files.length; i++) {
+    editExtras.push(await compressImage(files[i], 1000, 0.8));
+  }
+  input.value = '';
+  renderExtras();
+  syncStatus('m-edit', 'success', files.length + ' photo(s) added — click Save Changes to publish');
 }
 
 async function saveMerchEdit() {
@@ -808,6 +861,7 @@ async function saveMerchEdit() {
       stock: document.getElementById('em-stock').value,
       description: document.getElementById('em-desc').value.trim()
     };
+    if (Array.isArray(editExtras)) updates.extra_images = editExtras;
     if (file) updates.image_data = await compressImage(file, 800, 0.85);
     await sbFetch('merch', 'PATCH', updates, '?id=eq.' + id);
     syncStatus('m-edit', 'success', 'Saved');

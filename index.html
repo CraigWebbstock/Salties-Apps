@@ -432,7 +432,7 @@ function lazyLoad(){var imgs=document.querySelectorAll('img[data-src]');if(!imgs
 function handleNotify(e){e.preventDefault();e.target.innerHTML='<p style="padding:12px;font-weight:600;color:var(--rust);font-size:14px;">You are on the list. We will be in touch.</p>';}
 async function loadMerch(){
   try{
-    var items=await sbGet('merch','?order=sort_order.desc&limit=6');
+    var items=await sbGet('merch','?select=id,title,category,description,price,status,stock,image_data,sort_order&order=sort_order.desc&limit=6');
     if(!items.length)return;
     document.getElementById('merch-placeholder').style.display='none';
     document.getElementById('merch-products').style.display='block';
