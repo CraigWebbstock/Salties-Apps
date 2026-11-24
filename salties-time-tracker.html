@@ -1108,7 +1108,52 @@
     await loadData();
   }
 
-  loadData();
+  // ── SIGN-IN ── The database only accepts Craig's login, so sign in once
+  // per device. Supabase keeps the session and refreshes it automatically.
+  function showLogin(msg) {
+    let el = document.getElementById('sb-login');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'sb-login';
+      el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:var(--navy-dark,#0f1a2e);display:flex;align-items:center;justify-content:center;padding:20px';
+      el.innerHTML = '<form id="sb-login-form" style="background:#fff;border-radius:12px;padding:28px 24px;width:100%;max-width:340px;font-family:inherit;text-align:center">' +
+        '<div style="font-weight:800;font-size:20px;letter-spacing:.06em;color:#1a2744;margin-bottom:4px">TIME TRACKER</div>' +
+        '<div style="font-size:13px;color:#6B7C93;margin-bottom:18px">Sign in to Salties Customs</div>' +
+        '<input id="sb-email" type="email" autocomplete="username" placeholder="Email" required style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #d6dde8;border-radius:8px;font-size:16px;margin-bottom:10px">' +
+        '<input id="sb-pass" type="password" autocomplete="current-password" placeholder="Password" required style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #d6dde8;border-radius:8px;font-size:16px;margin-bottom:12px">' +
+        '<button type="submit" style="width:100%;background:#1a6fa8;color:#fff;border:0;padding:13px;border-radius:8px;font-size:15px;font-weight:600">Sign in</button>' +
+        '<div id="sb-login-msg" style="color:#c53030;font-size:13px;margin-top:10px;min-height:16px"></div></form>';
+      document.body.appendChild(el);
+      document.getElementById('sb-login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button');
+        btn.disabled = true; btn.textContent = 'Signing in…';
+        const { error } = await sb.auth.signInWithPassword({
+          email: document.getElementById('sb-email').value.trim(),
+          password: document.getElementById('sb-pass').value
+        });
+        btn.disabled = false; btn.textContent = 'Sign in';
+        if (error) { document.getElementById('sb-login-msg').textContent = 'Email or password not recognised.'; return; }
+        el.style.display = 'none';
+        document.getElementById('sb-pass').value = '';
+        loadData();
+      });
+    }
+    el.style.display = 'flex';
+    document.getElementById('sb-login-msg').textContent = msg || '';
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    jobs = []; renderAll();
+    showLogin('Signed out.');
+  }
+
+  (async function startApp() {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session) loadData();
+    else showLogin();
+  })();
 </script>
 </body>
 </html>
