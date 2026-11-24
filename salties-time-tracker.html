@@ -713,7 +713,9 @@
   async function loadData() {
     showSyncStatus('Syncing...', 'var(--gold-light)');
     try {
-      const { data, error } = await sb.from('jobs').select('*').order('created_at', { ascending: false });
+      // Jobs are shared with the job pipeline in the Quotes app. Enquiries,
+      // quotes and lost jobs aren't work yet, so the tracker leaves them out.
+      const { data, error } = await sb.from('jobs').select('*').not('stage', 'in', '(enquiry,quoted,lost)').order('created_at', { ascending: false });
       if (error) throw error;
       jobs = data.map(row => ({
         id: row.id,
@@ -1095,12 +1097,9 @@
   }
 
   async function clearAllData() {
-    if (!confirm('Delete ALL jobs and time records? This cannot be undone.')) return;
-    if (!confirm('Are you absolutely sure? All data will be lost.')) return;
-    try { await sb.from('jobs').delete().neq('id', 'none'); } catch(e) {}
-    jobs = [];
-    localStorage.removeItem('salties_time_tracker_v1');
-    renderAll();
+    // Jobs are now shared with the job pipeline, receipts and quotes, so wiping
+    // them all from here is switched off. Delete single jobs instead.
+    alert('Clearing everything is switched off now jobs are shared with the Quotes app. Delete jobs one at a time instead.');
   }
 
   async function syncNow() {
