@@ -262,7 +262,7 @@ function lazyLoad(){var imgs=document.querySelectorAll('img[data-src]');if(!imgs
 var allPhotos=[],cIdx=0,autoT=null,isScrolling=false,scrollT=null;
 async function loadPortfolio(){
   try{
-    allPhotos=await sbGet('portfolio','?order=sort_order.desc');
+    allPhotos=await sbGet('portfolio','?select=id,title,description,category,sort_order,image_url&order=sort_order.desc');
     document.getElementById('work-loading').style.display='none';
     if(!allPhotos.length){document.getElementById('work-empty').style.display='block';return;}
     document.getElementById('carousel-wrap').style.display='block';
@@ -274,16 +274,18 @@ function buildCarousel(items){
   c.innerHTML='';dots.innerHTML='';cIdx=0;clearInterval(autoT);
   items.forEach(function(item,i){
     var div=document.createElement('div');div.className='c-item';
-    if(item.image_data){
+    if(item.image_url||item.id){
+      // Photos load from Storage as they scroll into view. Any photo not yet
+      // moved to Storage is fetched on its own, never all images in one go.
       var img=document.createElement('img');
       img.alt=item.title;img.style.cssText='width:100%;height:100%;object-fit:cover;';
-      // Images are already in memory (base64 from Supabase JSON)
-      // Load all directly — no lazy loading needed for in-memory data
-      img.src='data:image/jpeg;base64,'+item.image_data;
+      img.loading='lazy';img.decoding='async';
+      if(item.image_url){img.src=item.image_url;}
+      else{sbGet('portfolio','?select=image_data&id=eq.'+item.id).then(function(r){if(r[0]&&r[0].image_data){item.legacySrc='data:image/jpeg;base64,'+r[0].image_data;img.src=item.legacySrc;}}).catch(function(){});}
       var ov=document.createElement('div');ov.className='c-overlay';
       ov.innerHTML='<h3>'+item.title+'</h3><span>'+(item.description||item.category)+'</span>';
       div.appendChild(img);div.appendChild(ov);
-      div.addEventListener('click',function(){if(!isScrolling)openLB('data:image/jpeg;base64,'+item.image_data,item.title,item.description||'');});
+      div.addEventListener('click',function(){if(!isScrolling)openLB(item.image_url||item.legacySrc||img.src,item.title,item.description||'');});
     }else{
       div.innerHTML='<div class="c-placeholder"><p>Add photo</p></div><div class="c-overlay"><h3>'+item.title+'</h3><span>'+item.category+'</span></div>';
     }

@@ -218,7 +218,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:#F0F4F8;color:#1A2744
 
     <!-- MANAGE PHOTOS -->
     <div class="panel" id="panel-p-manage">
-      <div class="panel-header"><h2>Portfolio Photos</h2><button class="btn btn-ghost btn-sm" onclick="loadPortfolio()">↺ Refresh</button></div>
+      <div class="panel-header"><h2>Portfolio Photos</h2><span><button class="btn btn-primary btn-sm" id="p-move-btn" style="display:none" onclick="movePhotosToStorage()">Move photos to fast storage</button> <button class="btn btn-ghost btn-sm" onclick="loadPortfolio()">↺ Refresh</button></span></div>
       <div class="sync-bar" id="sync-p-manage"></div>
       <div class="order-bar" id="p-order-bar"><p>Order changed — save to update the website</p><button class="btn btn-primary btn-sm" onclick="savePortfolioOrder()">Save Order</button></div>
       <div class="drag-hint">Drag cards to reorder within each category</div>
@@ -555,6 +555,43 @@ function dropFile(e, inputId, previewId) {
   fileSelected(input, previewId);
 }
 
+// ── PHOTO STORAGE ─────────────────────────────────────────────────────────
+// Photos live in Supabase Storage (bucket "portfolio"); the table keeps a link.
+function base64ToBlob(b64, type) {
+  var bin = atob(b64), arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: type || 'image/jpeg' });
+}
+async function uploadPhoto(b64, path) {
+  var up = await sbAuth.storage.from('portfolio').upload(path, base64ToBlob(b64), { contentType: 'image/jpeg', upsert: true, cacheControl: '31536000' });
+  if (up.error) throw new Error(up.error.message);
+  return sbAuth.storage.from('portfolio').getPublicUrl(path).data.publicUrl;
+}
+function storagePath(url) {
+  var m = /\/object\/public\/portfolio\/(.+)$/.exec(url || '');
+  return m ? decodeURIComponent(m[1].split('?')[0]) : null;
+}
+
+// One-off: move photos stored inside the table into Storage, one at a time.
+async function movePhotosToStorage() {
+  var todo = await sbGet('portfolio', '?select=id,title&image_url=is.null');
+  if (!todo.length) { syncStatus('p-manage', 'success', 'All photos are already in storage'); return; }
+  if (!confirm('Move ' + todo.length + ' photos to fast storage? Takes a minute or two. Keep this page open.')) return;
+  var done = 0, failed = [];
+  for (var i = 0; i < todo.length; i++) {
+    syncStatus('p-manage', 'loading', 'Moving photo ' + (i + 1) + ' of ' + todo.length + '…');
+    try {
+      var row = (await sbGet('portfolio', '?select=image_data&id=eq.' + todo[i].id))[0];
+      if (!row || !row.image_data) { failed.push(todo[i].title + ' (no image)'); continue; }
+      var url = await uploadPhoto(row.image_data, todo[i].id + '.jpg');
+      await sbFetch('portfolio', 'PATCH', { image_url: url }, '?id=eq.' + todo[i].id);
+      done++;
+    } catch (e) { failed.push(todo[i].title + ' (' + e.message + ')'); }
+  }
+  syncStatus('p-manage', failed.length ? 'error' : 'success', done + ' moved' + (failed.length ? ', ' + failed.length + ' failed: ' + failed.join('; ') : '. Your Our Work page now loads fast.'));
+  loadPortfolio();
+}
+
 // ── PORTFOLIO ─────────────────────────────────────────────────────────────
 async function addPortfolioPhoto() {
   var title = document.getElementById('p-title').value.trim();
@@ -565,10 +602,11 @@ async function addPortfolioPhoto() {
   if (!file)  { alert('Please select a photo.'); return; }
   syncStatus('p-add', 'loading', 'Uploading photo...');
   try {
-    var imgData = await compressImage(file, 900, 0.78);
+    var imgData = await compressImage(file, 1400, 0.8);
+    var url = await uploadPhoto(imgData, 'p' + Date.now() + Math.random().toString(36).slice(2, 6) + '.jpg');
     await sbFetch('portfolio', 'POST', {
       title: title, category: cat, description: desc,
-      image_data: imgData, sort_order: Date.now()
+      image_url: url, sort_order: Date.now()
     });
     syncStatus('p-add', 'success', 'Photo uploaded successfully');
     clearPortfolioForm();
@@ -586,7 +624,10 @@ function clearPortfolioForm() {
 async function loadPortfolio() {
   syncStatus('p-manage', 'loading', 'Loading photos...');
   try {
-    var items = await sbGet('portfolio', '?order=sort_order.desc');
+    var items = await sbGet('portfolio', '?select=id,title,category,description,sort_order,image_url&order=sort_order.desc');
+    var notMoved = items.filter(function (x) { return !x.image_url; }).length;
+    var moveBtn = document.getElementById('p-move-btn');
+    if (moveBtn) { moveBtn.style.display = notMoved ? '' : 'none'; moveBtn.textContent = 'Move ' + notMoved + ' photo' + (notMoved === 1 ? '' : 's') + ' to fast storage'; }
     var container = document.getElementById('portfolio-sections');
     container.innerHTML = '';
     if (!items.length) {
@@ -631,9 +672,9 @@ function makePortfolioCard(item) {
   var card = document.createElement('div');
   card.className = 'item-card';
   card.dataset.id = item.id;
-  var imgHtml = item.image_data
-    ? '<img src="data:image/jpeg;base64,' + item.image_data + '" alt="' + item.title + '">'
-    : '<div class="no-img">No image</div>';
+  var imgHtml = item.image_url
+    ? '<img src="' + item.image_url + '" alt="' + item.title + '" loading="lazy">'
+    : '<div class="no-img">Not moved yet</div>';
   card.innerHTML =
     '<div class="item-card-img">' + imgHtml + '</div>' +
     '<div class="item-card-body">' +
@@ -651,7 +692,13 @@ function makePortfolioCard(item) {
 
 async function deletePortfolio(id) {
   if (!confirm('Delete this photo? This cannot be undone.')) return;
-  try { await sbFetch('portfolio', 'DELETE', null, '?id=eq.' + id); loadPortfolio(); }
+  try {
+    var row = (await sbGet('portfolio', '?select=image_url&id=eq.' + id))[0];
+    await sbFetch('portfolio', 'DELETE', null, '?id=eq.' + id);
+    var path = row && storagePath(row.image_url);
+    if (path) await sbAuth.storage.from('portfolio').remove([path]);
+    loadPortfolio();
+  }
   catch(e) { alert('Delete failed: ' + e.message); }
 }
 
@@ -676,7 +723,7 @@ async function savePortfolioEdit() {
   syncStatus('p-edit', 'loading', 'Saving...');
   try {
     var updates = { title: title, category: cat, description: desc };
-    if (file) updates.image_data = await compressImage(file, 1200, 0.82);
+    if (file) updates.image_url = await uploadPhoto(await compressImage(file, 1400, 0.8), id + '-' + Date.now() + '.jpg');
     await sbFetch('portfolio', 'PATCH', updates, '?id=eq.' + id);
     syncStatus('p-edit', 'success', 'Saved');
     setTimeout(function() { closeModal('p-edit'); loadPortfolio(); }, 800);
